@@ -34,7 +34,7 @@ type Unit struct {
 	ArticulatedLengths     string
 }
 
-func Process(filename string) error {
+func Process(filename string, scales []string, ignoreTemplates []string) error {
 	csvFile, err := os.Open(filename)
 	defer csvFile.Close()
 	if err != nil {
@@ -52,10 +52,24 @@ func Process(filename string) error {
 		return err
 	}
 
-	for _, d := range data[1:] {
-		unit := getUnit(d, fields)
-		processUnit(unit, 1)
-		processUnit(unit, 2)
+	for _, scaleString := range scales {
+		scaleI, err := strconv.Atoi(scaleString)
+		if err != nil {
+			return err
+		}
+
+	PerEntryLoop:
+		for _, d := range data[1:] {
+			unit := getUnit(d, fields)
+
+			for _, templateToIgnore := range ignoreTemplates {
+				if unit.Template == templateToIgnore {
+					continue PerEntryLoop // Skip this element.
+				}
+			}
+
+			processUnit(unit, scaleI)
+		}
 	}
 
 	return nil
@@ -83,9 +97,6 @@ func processUnit(unit Unit, scale int) {
 
 	var newestInput time.Time
 
-	if unit.Template == "na" || unit.Template == "tender" {
-		return
-	}
 	overlay := ""
 
 	if unit.Cars > 0 && (len(unit.OverrideLengthPerUnit) == 0 || (len(unit.OverrideLengthPerUnit) == 1 && unit.OverrideLengthPerUnit[0] == 0)) {
