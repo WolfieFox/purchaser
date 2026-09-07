@@ -26,8 +26,14 @@ func main() {
 	flag.Parse()
 
 	files := flag.Args()
+
+	p, err := processor.GetProcessor(strings.Split(flags.IgnoreTemplates, ","), strings.Split(flags.Scales, ","))
+	if err != nil {
+		log.Panicf("error attempting to instantiate processor: %v", err)
+	}
+
 	for _, file := range files {
-		err := processor.Process(file, strings.Split(flags.Scales, ","), strings.Split(flags.IgnoreTemplates, ","))
+		err := p.Process(file)
 		if err != nil {
 			log.Panicf("could not open file: %v", err)
 		}

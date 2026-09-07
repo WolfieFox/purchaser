@@ -34,7 +34,30 @@ type Unit struct {
 	ArticulatedLengths     string
 }
 
-func Process(filename string, scales []string, ignoreTemplates []string) error {
+type Processor struct {
+	ignoreTemplates []string
+	scales          []int
+}
+
+func GetProcessor(ignoreTemplates []string, scaleStrings []string) (*Processor, error) {
+	scaleInts := make([]int, len(scaleStrings))
+
+	for idx, scaleString := range scaleStrings {
+		scaleInt, err := strconv.Atoi(scaleString)
+		if err != nil {
+			return nil, err
+		}
+
+		scaleInts[idx] = scaleInt
+	}
+
+	return &Processor{
+		ignoreTemplates: ignoreTemplates,
+		scales:          scaleInts,
+	}, nil
+}
+
+func (p *Processor) Process(filename string) error {
 	csvFile, err := os.Open(filename)
 	defer csvFile.Close()
 	if err != nil {
@@ -52,27 +75,27 @@ func Process(filename string, scales []string, ignoreTemplates []string) error {
 		return err
 	}
 
-	for _, scaleString := range scales {
-		scaleI, err := strconv.Atoi(scaleString)
-		if err != nil {
-			return err
-		}
+	for _, d := range data[1:] {
+		unit := getUnit(d, fields)
 
-	PerEntryLoop:
-		for _, d := range data[1:] {
-			unit := getUnit(d, fields)
-
-			for _, templateToIgnore := range ignoreTemplates {
-				if unit.Template == templateToIgnore {
-					continue PerEntryLoop // Skip this element.
-				}
+		for _, scale := range p.scales {
+			if p.canProcess(unit) {
+				processUnit(unit, scale)
 			}
-
-			processUnit(unit, scaleI)
 		}
 	}
 
 	return nil
+}
+
+func (p *Processor) canProcess(unit Unit) bool {
+	for _, templateToIgnore := range p.ignoreTemplates {
+		if unit.Template == templateToIgnore {
+			return false
+		}
+	}
+
+	return true
 }
 
 func fileIsNewerThanDate(filename string, date time.Time) (bool, error) {
